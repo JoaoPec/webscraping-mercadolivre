@@ -3,96 +3,123 @@ import requests
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# URL do carrossel de ofertas do Mercado Livre
-url = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779362-4&category=MLB1055&promotion_type=deal_of_the_day#deal_print_id=de8f40a0-1799-11ef-ae3e-8f8caf3e79ed&c_id=carouseldynamic-normal&c_element_order=undefined&c_campaign=VER-MAIS&c_uid=de8f40a0-1799-11ef-ae3e-8f8caf3e79ed'
-headers = {"User-Agent": "Mozilla/5.0"}
-response = requests.get(url, headers=headers)
-soup = BeautifulSoup(response.text, 'html.parser')
+# Função para obter a escolha da marca pelo usuário
+def getBrandChoice():
+    print("Escolha uma marca de celular para pesquisar:")
+    print("1. Motorola")
+    print("2. Samsung")
+    print("3. Apple")
+    print("4. Todas")
 
-# Lista para armazenar os produtos
-produtos = []
+    choice = input("Digite o número da sua escolha: ")
 
-# Encontrar a lista de itens
-items_container = soup.find('ol', class_='items_container')
+    if choice == '1':
+        return "Motorola"
+    elif choice == '2':
+        return "Samsung"
+    elif choice == '3':
+        return "Apple"
+    elif choice == '4':
+        return "Todas"
+    else:
+        print("Escolha inválida. Por favor, tente novamente.")
+        return getBrandChoice()
 
-if items_container:
-    # Iterar pelos itens do carrossel
-    for item in items_container.find_all('li', class_='promotion-item'):
-        # Extraindo o nome do produto
-        nome_tag = item.find('p', class_='promotion-item__title')
-        if nome_tag:
-            nome = nome_tag.text.strip()
-        else:
-            continue  # Pula o item se não encontrar o nome
+# Função para extrair produtos da página HTML
+def extractProducts(soup, brand):
+    products = []
 
-        # Procurar pelo preço com desconto
-        span_preco_desconto = item.find('s', class_='andes-money-amount andes-money-amount-combo__previous-value andes-money-amount--previous andes-money-amount--cents-superscript')
-        if span_preco_desconto:
-            preco_desconto_text = span_preco_desconto.text.replace('R$', '').strip()
-            try:
-                preco_desconto = float(preco_desconto_text.replace('.', '').replace(',', '.').strip())
-                print(f'Preço com desconto encontrado para o produto "{nome}": R${preco_desconto:.2f}')
-            except ValueError:
-                preco_desconto = None
-                print(f'Erro ao converter o preço com desconto para o produto "{nome}": {preco_desconto_text}')
-        else:
-            preco_desconto = None
-            print(f'Preço com desconto não encontrado para o produto "{nome}"')
+    itemsContainer = soup.find('ol', class_='items_container')
 
-        # Procurar pelo preço original
-        span_preco_original = item.find('span', class_='andes-money-amount__fraction')
-        if span_preco_original:
-            preco_original_text = span_preco_original.text.replace('R$', '').strip()
-            try:
-                preco_original = float(preco_original_text.replace('.', '').replace(',', '.').strip())
-                print(f'Preço original encontrado para o produto "{nome}": R${preco_original:.2f}')
-            except ValueError:
-                preco_original = None
-                print(f'Erro ao converter o preço original para o produto "{nome}": {preco_original_text}')
-        else:
-            preco_original = None
-            print(f'Preço original não encontrado para o produto "{nome}"')
+    if itemsContainer:
+        for item in itemsContainer.find_all('li', class_='promotion-item'):
+            nameTag = item.find('p', class_='promotion-item__title')
+            if nameTag:
+                name = nameTag.text.strip()
+            else:
+                continue
 
-        # Calcular o percentual de desconto se ambos os preços estão disponíveis
-        if preco_original and preco_desconto:
-            desconto = (preco_original - preco_desconto) / preco_original * 100
-            produtos.append({
-                'Nome': nome,
-                'Preço Original': preco_original,
-                'Preço com Desconto': preco_desconto,
-                'Percentual de Desconto': desconto
-            })
+            # Verifica se o produto pertence à marca escolhida
+            if brand != "Todas" and brand not in name:
+                continue
 
-# Criar um DataFrame com os produtos
-df = pd.DataFrame(produtos)
+            spanDiscountPrice = item.find('s', class_='andes-money-amount andes-money-amount-combo__previous-value andes-money-amount--previous andes-money-amount--cents-superscript')
+            if spanDiscountPrice:
+                discountPriceText = spanDiscountPrice.text.replace('R$', '').strip()
+                try:
+                    discountPrice = float(discountPriceText.replace('.', '').replace(',', '.').strip())
+                    print(f'Preço com desconto encontrado para o produto "{name}": R${discountPrice:.2f}')
+                except ValueError:
+                    discountPrice = None
+                    print(f'Erro ao converter o preço com desconto para o produto "{name}": {discountPriceText}')
+            else:
+                discountPrice = None
+                print(f'Preço com desconto não encontrado para o produto "{name}"')
 
-# Ordenar o DataFrame em ordem alfabética pelo nome do produto
-df = df.sort_values(by='Nome')
+            spanOriginalPrice = item.find('span', class_='andes-money-amount__fraction')
+            if spanOriginalPrice:
+                originalPriceText = spanOriginalPrice.text.replace('R$', '').strip()
+                try:
+                    originalPrice = float(originalPriceText.replace('.', '').replace(',', '.').strip())
+                    print(f'Preço original encontrado para o produto "{name}": R${originalPrice:.2f}')
+                except ValueError:
+                    originalPrice = None
+                    print(f'Erro ao converter o preço original para o produto "{name}": {originalPriceText}')
+            else:
+                originalPrice = None
+                print(f'Preço original não encontrado para o produto "{name}"')
 
-# Salvar o DataFrame em um arquivo CSV
-df.to_csv('produtos_mercado_livre.csv', index=False)
+            if originalPrice and discountPrice:
+                discountPercentage = round((originalPrice - discountPrice) / originalPrice * 100, 2)
+                products.append({
+                    'Name': name,
+                    'Original Price': originalPrice,
+                    'Discount Price': discountPrice,
+                    'Discount Percentage': discountPercentage
+                })
+    return products
 
-# Salvar o DataFrame em um arquivo Excel
-with pd.ExcelWriter('produtos_mercado_livre.xlsx') as writer:
-    df.to_excel(writer, index=False, sheet_name='Produtos')
+# Função para iniciar a busca e gerar relatórios
+def startSearch(brand):
+    urlPage1 = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES'
+    urlPage2 = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES&page=2'
+    headers = {"User-Agent": "Mozilla/5.0"}
 
-# Calcular estatísticas
-media = df['Percentual de Desconto'].mean()
-mediana = df['Percentual de Desconto'].median()
-desvio_padrao = df['Percentual de Desconto'].std()
+    responsePage1 = requests.get(urlPage1, headers=headers)
+    soupPage1 = BeautifulSoup(responsePage1.text, 'html.parser')
+    productsPage1 = extractProducts(soupPage1, brand)
 
-# Exibir estatísticas
-print(f'Média: {media:.2f}%')
-print(f'Mediana: {mediana:.2f}%')
-print(f'Desvio Padrão: {desvio_padrao:.2f}%')
+    responsePage2 = requests.get(urlPage2, headers=headers)
+    soupPage2 = BeautifulSoup(responsePage2.text, 'html.parser')
+    productsPage2 = extractProducts(soupPage2, brand)
 
-# Criar boxplot para visualizar a distribuição dos descontos
-plt.boxplot(df['Percentual de Desconto'])
-plt.title('Distribuição dos Descontos')
-plt.ylabel('Percentual de Desconto')
+    products = productsPage1 + productsPage2
 
-# Salvar o gráfico em um arquivo
-plt.savefig('boxplot.png')
+    df = pd.DataFrame(products)
 
-# Exibir o gráfico
-plt.show()
+    df = df.sort_values(by='Name')
+
+    df.to_csv('mercado_livre_products.csv', index=False)
+
+    with pd.ExcelWriter('mercado_livre_products.xlsx') as writer:
+        df.to_excel(writer, index=False, sheet_name='Products')
+
+    mean = df['Discount Percentage'].mean()
+    median = df['Discount Percentage'].median()
+    stdDev = df['Discount Percentage'].std()
+
+    print(f'Média: {mean:.2f}%')
+    print(f'Mediana: {median:.2f}%')
+    print(f'Desvio Padrão: {stdDev:.2f}%')
+
+    plt.boxplot(df['Discount Percentage'])
+    plt.title('Distribuição dos Descontos')
+    plt.ylabel('Percentual de Desconto')
+
+    plt.savefig('discount_boxplot.png')
+
+    plt.show()
+
+# Menu no terminal para o usuário escolher a marca
+selectedBrand = getBrandChoice()
+startSearch(selectedBrand)
