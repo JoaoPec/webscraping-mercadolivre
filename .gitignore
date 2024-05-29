@@ -4,6 +4,14 @@
 # C extensions
 *.so
 
+.~lock.mercado_livre_products.xlsx#
+
+# Generated grafics
+*.csv
+*.xlsx
+*.png
+
+
 # Distribution / packaging
 .Python
 build/
