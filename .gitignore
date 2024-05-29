@@ -1,6 +1,4 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
+# Byte-compiled / optimized / DLL files __pycache__/ *.py[cod]
 *$py.class
 
 # C extensions
@@ -131,6 +129,9 @@ env.bak/
 venv.bak/
 webscraping/
 webscraping
+
+##sh
+kill.sh
 
 # Spyder project settings
 .spyderproject

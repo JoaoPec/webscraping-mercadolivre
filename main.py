@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
+from collections import Counter
 
 # Função para obter a escolha da marca pelo usuário
 def getBrandChoice():
@@ -25,9 +26,9 @@ def getBrandChoice():
         print("Escolha inválida. Por favor, tente novamente.")
         return getBrandChoice()
 
-# Função para extrair produtos da página HTML
 def extractProducts(soup, brand):
     products = []
+    brands_counter = Counter()
 
     itemsContainer = soup.find('ol', class_='items_container')
 
@@ -39,47 +40,54 @@ def extractProducts(soup, brand):
             else:
                 continue
 
-            # Verifica se o produto pertence à marca escolhida
-            if brand != "Todas" and brand not in name:
-                continue
+            # Verifica se a escolha foi "Todas" ou se o nome da marca está presente no nome do produto
+            if brand == 'Todas' or any(b.strip().lower() in name.lower() for b in brand.split(',')):
+                # Incrementa a contagem da marca, caso não seja "Todas"
+                if brand != 'Todas':
+                    for b in brand.split(','):
+                        if b.strip().lower() in name.lower():
+                            brands_counter[b.strip()] += 1
+                else:
+                    # Contabiliza todas as marcas que aparecem no nome do produto
+                    for b in ['Motorola', 'Samsung', 'Apple']:  # Lista de marcas a ser contabilizada
+                        if b.lower() in name.lower():
+                            brands_counter[b] += 1
 
-            spanDiscountPrice = item.find('s', class_='andes-money-amount andes-money-amount-combo__previous-value andes-money-amount--previous andes-money-amount--cents-superscript')
-            if spanDiscountPrice:
-                discountPriceText = spanDiscountPrice.text.replace('R$', '').strip()
-                try:
-                    discountPrice = float(discountPriceText.replace('.', '').replace(',', '.').strip())
-                    print(f'Preço com desconto encontrado para o produto "{name}": R${discountPrice:.2f}')
-                except ValueError:
-                    discountPrice = None
-                    print(f'Erro ao converter o preço com desconto para o produto "{name}": {discountPriceText}')
-            else:
-                discountPrice = None
-                print(f'Preço com desconto não encontrado para o produto "{name}"')
+                # Extrai o URL do produto
+                url = item.find('a', class_='promotion-item__link-container')['href']
 
-            spanOriginalPrice = item.find('span', class_='andes-money-amount__fraction')
-            if spanOriginalPrice:
-                originalPriceText = spanOriginalPrice.text.replace('R$', '').strip()
-                try:
-                    originalPrice = float(originalPriceText.replace('.', '').replace(',', '.').strip())
-                    print(f'Preço original encontrado para o produto "{name}": R${originalPrice:.2f}')
-                except ValueError:
-                    originalPrice = None
-                    print(f'Erro ao converter o preço original para o produto "{name}": {originalPriceText}')
-            else:
-                originalPrice = None
-                print(f'Preço original não encontrado para o produto "{name}"')
-
-            if originalPrice and discountPrice:
-                discountPercentage = round((originalPrice - discountPrice) / originalPrice * 100, 2)
+                # Adiciona o produto à lista
                 products.append({
-                    'Name': name,
-                    'Original Price': originalPrice,
-                    'Discount Price': discountPrice,
-                    'Discount Percentage': discountPercentage
+                    'Nome': name,
+                    'Marca': 'Todas' if brand == 'Todas' else brand,
+                    'Preço Original': get_price(item, 's', 'andes-money-amount andes-money-amount-combo__previous-value andes-money-amount--previous andes-money-amount--cents-superscript'),
+                    'Preço com Desconto': get_price(item, 'span', 'andes-money-amount__fraction'),
+                    'Link': url,
+                    'Popularidade': get_popularity(item)
                 })
-    return products
+
+    return products, brands_counter
+
+
+# Função para obter o preço de um produto
+def get_price(item, tag, class_name):
+    price_tag = item.find(tag, class_=class_name)
+    if price_tag:
+        price_text = price_tag.text.replace('R$', '').strip()
+        try:
+            return float(price_text.replace('.', '').replace(',', '.').strip())
+        except ValueError:
+            print(f'Erro ao converter o preço para o produto "{name}": {price_text}')
+    return None
+
+# Função para obter a popularidade de um produto (apenas um exemplo, pode ser a quantidade de vendas, avaliações, etc.)
+def get_popularity(item):
+    # Aqui você pode implementar a lógica para extrair a popularidade do produto
+    # Por exemplo, poderia ser o número de vendas ou avaliações
+    return None
 
 # Função para iniciar a busca e gerar relatórios
+
 def startSearch(brand):
     urlPage1 = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES'
     urlPage2 = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES&page=2'
@@ -87,34 +95,46 @@ def startSearch(brand):
 
     responsePage1 = requests.get(urlPage1, headers=headers)
     soupPage1 = BeautifulSoup(responsePage1.text, 'html.parser')
-    productsPage1 = extractProducts(soupPage1, brand)
+    productsPage1, brands_counter1 = extractProducts(soupPage1, brand)
 
     responsePage2 = requests.get(urlPage2, headers=headers)
     soupPage2 = BeautifulSoup(responsePage2.text, 'html.parser')
-    productsPage2 = extractProducts(soupPage2, brand)
+    productsPage2, brands_counter2 = extractProducts(soupPage2, brand)
 
     products = productsPage1 + productsPage2
+    brands_counter = brands_counter1 + brands_counter2
 
     df = pd.DataFrame(products)
 
-    df = df.sort_values(by='Name')
+    df = df.sort_values(by='Marca')  # Corrigindo a ordenação para a coluna 'Marca'
 
     df.to_csv('mercado_livre_products.csv', index=False)
 
-    with pd.ExcelWriter('mercado_livre_products.xlsx') as writer:
-        df.to_excel(writer, index=False, sheet_name='Products')
+    # Inicializando o writer do Excel com xlsxwriter
+    with pd.ExcelWriter('mercado_livre_products.xlsx', engine='xlsxwriter') as writer:
+        # Adicionando o DataFrame ao arquivo Excel
+        df.to_excel(writer, index=False, sheet_name='Produtos')
 
-    mean = df['Discount Percentage'].mean()
-    median = df['Discount Percentage'].median()
-    stdDev = df['Discount Percentage'].std()
+    # Calculando e exibindo as estatísticas, e mostrando o gráfico de caixa
+    mean_discount = df['Preço com Desconto'].mean()
+    median_discount = df['Preço com Desconto'].median()
+    stdDev_discount = df['Preço com Desconto'].std()
 
-    print(f'Média: {mean:.2f}%')
-    print(f'Mediana: {median:.2f}%')
-    print(f'Desvio Padrão: {stdDev:.2f}%')
+    print(f'Média dos preços com desconto: R${mean_discount:.2f}')
+    print(f'Mediana dos preços com desconto: R${median_discount:.2f}')
+    print(f'Desvio Padrão dos preços com desconto: R${stdDev_discount:.2f}')
 
-    plt.boxplot(df['Discount Percentage'])
+    moda_discount = df['Preço com Desconto'].mode()
+    print(f'Desconto mais comum (moda): R${moda_discount.values[0]:.2f}')
+
+    print('Frequência de marcas em promoção:')
+    for brand, count in brands_counter.items():
+        print(f'{brand}: {count}')
+
+    # Plota e exibe o gráfico de caixa
+    plt.boxplot(df['Preço com Desconto'])
     plt.title('Distribuição dos Descontos')
-    plt.ylabel('Percentual de Desconto')
+    plt.ylabel('Preço com Desconto (R$)')
 
     plt.savefig('discount_boxplot.png')
 
