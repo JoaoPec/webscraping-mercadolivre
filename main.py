@@ -82,7 +82,6 @@ def get_price(item, tag, class_name):
 
 # Função para obter a popularidade de um produto (apenas um exemplo, pode ser a quantidade de vendas, avaliações, etc.)
 def get_popularity(item):
-    # Aqui você pode implementar a lógica para extrair a popularidade do produto
     # Por exemplo, poderia ser o número de vendas ou avaliações
     return None
 
