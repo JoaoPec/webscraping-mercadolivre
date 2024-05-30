@@ -28,7 +28,7 @@ def getBrandChoice():
 
 def extractProducts(soup, brand):
     products = []
-    brands_counter = Counter()
+    brandsCounter = Counter()
 
     itemsContainer = soup.find('ol', class_='items_container')
 
@@ -41,38 +41,46 @@ def extractProducts(soup, brand):
                 continue
 
             # Determina a marca do produto
-            product_brand = None
+            productBrand = None
             for b in ['Motorola', 'Samsung', 'Apple']:
                 if b.lower() in name.lower():
-                    product_brand = b
-                    brands_counter[b] += 1
+                    productBrand = b
+                    brandsCounter[b] += 1
                     break
 
             # Se a escolha foi "Todas" ou se a marca do produto é a escolhida pelo usuário
-            if brand == 'Todas' or (product_brand and product_brand.lower() in brand.lower()):
+            if brand == 'Todas' or (productBrand and productBrand.lower() in brand.lower()):
                 # Extrai o URL do produto
                 url = item.find('a', class_='promotion-item__link-container')['href']
+
+                # Obtém os preços
+                originalPrice = getPrice(item, 's', 'andes-money-amount andes-money-amount-combo__previous-value andes-money-amount--previous andes-money-amount--cents-superscript')
+                discountPrice = getPrice(item, 'span', 'andes-money-amount__fraction')
+
+                # Calcula o percentual de desconto, se ambos os preços estiverem disponíveis
+                discountPercent = ((originalPrice - discountPrice) / originalPrice * 100) if originalPrice and discountPrice else None
 
                 # Adiciona o produto à lista
                 products.append({
                     'Nome': name,
-                    'Marca': product_brand,
-                    'Preço Original': get_price(item, 's', 'andes-money-amount andes-money-amount-combo__previous-value andes-money-amount--previous andes-money-amount--cents-superscript'),
-                    'Preço com Desconto': get_price(item, 'span', 'andes-money-amount__fraction'),
+                    'Marca': productBrand,
+                    'Preço Original': originalPrice,
+                    'Preço com Desconto': discountPrice,
+                    'Percentual de Desconto': round(discountPercent, 2) if discountPercent is not None else None,
                     'Link': url,
                 })
 
-    return products, brands_counter
+    return products, brandsCounter
 
 # Função para obter o preço de um produto
-def get_price(item, tag, class_name):
-    price_tag = item.find(tag, class_=class_name)
-    if price_tag:
-        price_text = price_tag.text.replace('R$', '').strip()
+def getPrice(item, tag, className):
+    priceTag = item.find(tag, class_=className)
+    if priceTag:
+        priceText = priceTag.text.replace('R$', '').strip()
         try:
-            return float(price_text.replace('.', '').replace(',', '.').strip())
+            return float(priceText.replace('.', '').replace(',', '.').strip())
         except ValueError:
-            print(f'Erro ao converter o preço: {price_text}')
+            print(f'Erro ao converter o preço: {priceText}')
     return None
 
 # Função para iniciar a busca e gerar relatórios
@@ -83,14 +91,14 @@ def startSearch(brand):
 
     responsePage1 = requests.get(urlPage1, headers=headers)
     soupPage1 = BeautifulSoup(responsePage1.text, 'html.parser')
-    productsPage1, brands_counter1 = extractProducts(soupPage1, brand)
+    productsPage1, brandsCounter1 = extractProducts(soupPage1, brand)
 
     responsePage2 = requests.get(urlPage2, headers=headers)
     soupPage2 = BeautifulSoup(responsePage2.text, 'html.parser')
-    productsPage2, brands_counter2 = extractProducts(soupPage2, brand)
+    productsPage2, brandsCounter2 = extractProducts(soupPage2, brand)
 
     products = productsPage1 + productsPage2
-    brands_counter = brands_counter1 + brands_counter2
+    brandsCounter = brandsCounter1 + brandsCounter2
 
     df = pd.DataFrame(products)
 
@@ -104,25 +112,25 @@ def startSearch(brand):
         df.to_excel(writer, index=False, sheet_name='Produtos')
 
     # Calculando e exibindo as estatísticas, e mostrando o gráfico de caixa
-    mean_discount = df['Preço com Desconto'].mean()
-    median_discount = df['Preço com Desconto'].median()
-    stdDev_discount = df['Preço com Desconto'].std()
+    meanDiscount = df['Percentual de Desconto'].mean()
+    medianDiscount = df['Percentual de Desconto'].median()
+    stdDevDiscount = df['Percentual de Desconto'].std()
 
-    print(f'Média dos preços com desconto: R${mean_discount:.2f}')
-    print(f'Mediana dos preços com desconto: R${median_discount:.2f}')
-    print(f'Desvio Padrão dos preços com desconto: R${stdDev_discount:.2f}')
+    print(f'Média dos percentuais de desconto: {meanDiscount:.2f}%')
+    print(f'Mediana dos percentuais de desconto: {medianDiscount:.2f}%')
+    print(f'Desvio Padrão dos percentuais de desconto: {stdDevDiscount:.2f}%')
 
-    moda_discount = df['Preço com Desconto'].mode()
-    print(f'Desconto mais comum (moda): R${moda_discount.values[0]:.2f}')
+    modaDiscount = df['Percentual de Desconto'].mode()
+    print(f'Desconto mais comum (moda): {modaDiscount.values[0]:.2f}%')
 
     print('Frequência de marcas em promoção:')
-    for brand, count in brands_counter.items():
+    for brand, count in brandsCounter.items():
         print(f'{brand}: {count}')
 
     # Plota e exibe o gráfico de caixa
-    plt.boxplot(df['Preço com Desconto'])
+    plt.boxplot(df['Percentual de Desconto'].dropna())
     plt.title('Distribuição dos Descontos')
-    plt.ylabel('Preço com Desconto (R$)')
+    plt.ylabel('Percentual de Desconto (%)')
 
     plt.savefig('discount_boxplot.png')
 
