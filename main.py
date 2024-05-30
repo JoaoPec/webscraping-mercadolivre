@@ -40,26 +40,23 @@ def extractProducts(soup, brand):
             else:
                 continue
 
-            # Verifica se a escolha foi "Todas" ou se o nome da marca está presente no nome do produto
-            if brand == 'Todas' or any(b.strip().lower() in name.lower() for b in brand.split(',')):
-                # Incrementa a contagem da marca, caso não seja "Todas"
-                if brand != 'Todas':
-                    for b in brand.split(','):
-                        if b.strip().lower() in name.lower():
-                            brands_counter[b.strip()] += 1
-                else:
-                    # Contabiliza todas as marcas que aparecem no nome do produto
-                    for b in ['Motorola', 'Samsung', 'Apple']:  # Lista de marcas a ser contabilizada
-                        if b.lower() in name.lower():
-                            brands_counter[b] += 1
+            # Determina a marca do produto
+            product_brand = None
+            for b in ['Motorola', 'Samsung', 'Apple']:
+                if b.lower() in name.lower():
+                    product_brand = b
+                    brands_counter[b] += 1
+                    break
 
+            # Se a escolha foi "Todas" ou se a marca do produto é a escolhida pelo usuário
+            if brand == 'Todas' or (product_brand and product_brand.lower() in brand.lower()):
                 # Extrai o URL do produto
                 url = item.find('a', class_='promotion-item__link-container')['href']
 
                 # Adiciona o produto à lista
                 products.append({
                     'Nome': name,
-                    'Marca': 'Todas' if brand == 'Todas' else brand,
+                    'Marca': product_brand,
                     'Preço Original': get_price(item, 's', 'andes-money-amount andes-money-amount-combo__previous-value andes-money-amount--previous andes-money-amount--cents-superscript'),
                     'Preço com Desconto': get_price(item, 'span', 'andes-money-amount__fraction'),
                     'Link': url,
@@ -67,7 +64,6 @@ def extractProducts(soup, brand):
                 })
 
     return products, brands_counter
-
 
 # Função para obter o preço de um produto
 def get_price(item, tag, class_name):
@@ -77,7 +73,7 @@ def get_price(item, tag, class_name):
         try:
             return float(price_text.replace('.', '').replace(',', '.').strip())
         except ValueError:
-            print(f'Erro ao converter o preço para o produto "{name}": {price_text}')
+            print(f'Erro ao converter o preço: {price_text}')
     return None
 
 # Função para obter a popularidade de um produto (apenas um exemplo, pode ser a quantidade de vendas, avaliações, etc.)
@@ -86,7 +82,6 @@ def get_popularity(item):
     return None
 
 # Função para iniciar a busca e gerar relatórios
-
 def startSearch(brand):
     urlPage1 = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES'
     urlPage2 = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES&page=2'
