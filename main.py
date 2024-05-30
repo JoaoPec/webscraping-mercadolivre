@@ -60,7 +60,6 @@ def extractProducts(soup, brand):
                     'Preço Original': get_price(item, 's', 'andes-money-amount andes-money-amount-combo__previous-value andes-money-amount--previous andes-money-amount--cents-superscript'),
                     'Preço com Desconto': get_price(item, 'span', 'andes-money-amount__fraction'),
                     'Link': url,
-                    'Popularidade': get_popularity(item)
                 })
 
     return products, brands_counter
@@ -74,11 +73,6 @@ def get_price(item, tag, class_name):
             return float(price_text.replace('.', '').replace(',', '.').strip())
         except ValueError:
             print(f'Erro ao converter o preço: {price_text}')
-    return None
-
-# Função para obter a popularidade de um produto (apenas um exemplo, pode ser a quantidade de vendas, avaliações, etc.)
-def get_popularity(item):
-    # Por exemplo, poderia ser o número de vendas ou avaliações
     return None
 
 # Função para iniciar a busca e gerar relatórios
