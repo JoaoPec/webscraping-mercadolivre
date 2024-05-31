@@ -14,8 +14,6 @@ Justificativa: Identificar as marcas mais comuns em promoção pode ajudar a ent
 4. Qual o percentual de descontos mais comum (moda) entre os produtos analisados?
 Justificativa: Saber qual desconto é mais frequentemente aplicado pode ajudar consumidores a identificar boas ofertas.
 
-5. Existe alguma correlação entre o percentual de desconto e a popularidade (número de vendas ou avaliações) dos smartphones?
-Justificativa: Explorar essa correlação pode fornecer insights sobre como os descontos afetam a demanda.
 
 ## Estrutura do Dataset:
 
@@ -30,7 +28,5 @@ O dataset inclui as seguintes colunas:
 - Preço com Desconto: Preço do produto após o desconto.
 
 - Percentual de Desconto: Percentual de desconto aplicado.
-
-- Número de Avaliações: Número de avaliações do produto (se disponível).
 
 - Link do Produto: URL do produto no Mercado Livre.
