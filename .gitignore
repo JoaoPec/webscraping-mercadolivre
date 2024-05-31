@@ -7,9 +7,9 @@
 .~lock.mercado_livre_products.xlsx#
 
 # Generated grafics
-*.csv
-*.xlsx
-*.png
+# *.csv
+# *.xlsx
+# *.png
 
 
 # Distribution / packaging
