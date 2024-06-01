@@ -26,8 +26,11 @@ def getBrandChoice():
         print("Escolha inválida. Por favor, tente novamente.")
         return getBrandChoice()
 
+# Função para extrair os produtos da página
 def extractProducts(soup, brand):
     products = []
+
+    # Inicializa um contador para as marcas
     brandsCounter = Counter()
 
     itemsContainer = soup.find('ol', class_='items_container')
@@ -36,6 +39,7 @@ def extractProducts(soup, brand):
         for item in itemsContainer.find_all('li', class_='promotion-item'):
             nameTag = item.find('p', class_='promotion-item__title')
             if nameTag:
+                # Extrai o nome do produto, removendo espaços em branco
                 name = nameTag.text.strip()
             else:
                 continue
@@ -48,7 +52,9 @@ def extractProducts(soup, brand):
                     brandsCounter[b] += 1
                     break
 
-            # Se a escolha foi "Todas" ou se a marca do produto é a escolhida pelo usuário
+            # Verifica se o produto deve ser incluído na lista com base na escolha do usuário.
+            # Se o usuário escolheu "Todas", incluímos todos os produtos.
+            # Se o usuário escolheu uma marca específica, incluímos apenas produtos dessa marca.
             if brand == 'Todas' or (productBrand and productBrand.lower() in brand.lower()):
                 # Extrai o URL do produto
                 url = item.find('a', class_='promotion-item__link-container')['href']
@@ -89,6 +95,7 @@ def startSearch(brand):
     urlPage2 = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES&page=2'
     headers = {"User-Agent": "Mozilla/5.0"}
 
+    # Faz a requisição das páginas e extrai os produtos
     responsePage1 = requests.get(urlPage1, headers=headers)
     soupPage1 = BeautifulSoup(responsePage1.text, 'html.parser')
     productsPage1, brandsCounter1 = extractProducts(soupPage1, brand)
@@ -102,7 +109,8 @@ def startSearch(brand):
 
     df = pd.DataFrame(products)
 
-    df = df.sort_values(by='Marca')  # Corrigindo a ordenação para a coluna 'Marca'
+    # Ordena o DataFrame pela marca
+    df = df.sort_values(by='Marca')
 
     df.to_csv('mercado_livre_products.csv', index=False)
 
@@ -111,9 +119,13 @@ def startSearch(brand):
         # Adicionando o DataFrame ao arquivo Excel
         df.to_excel(writer, index=False, sheet_name='Produtos')
 
-    # Calculando e exibindo as estatísticas, e mostrando o gráfico de caixa
+    # Calcula a média dos percentuais de desconto dos produtos
     meanDiscount = df['Percentual de Desconto'].mean()
+
+    # Calcula a mediana dos percentuais de desconto dos produtos
     medianDiscount = df['Percentual de Desconto'].median()
+
+    # Calcula o desvio padrão dos percentuais de desconto dos produtos
     stdDevDiscount = df['Percentual de Desconto'].std()
 
     print(f'Média dos percentuais de desconto: {meanDiscount:.2f}%')
@@ -127,7 +139,7 @@ def startSearch(brand):
     for brand, count in brandsCounter.items():
         print(f'{brand}: {count}')
 
-    # Plota e exibe o gráfico de caixa
+    # Plota e exibe o gráfico bloxpot removendo valores NaN
     plt.boxplot(df['Percentual de Desconto'].dropna())
     plt.title('Distribuição dos Descontos')
     plt.ylabel('Percentual de Desconto (%)')
