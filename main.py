@@ -76,7 +76,7 @@ def extractProducts(soup, brand):
                     'Link': url,
                 })
 
-    return products, brandsCounter
+        return products, brandsCounter
 
 # Função para obter o preço de um produto
 def getPrice(item, tag, className):
@@ -91,61 +91,59 @@ def getPrice(item, tag, className):
 
 # Função para iniciar a busca e gerar relatórios
 def startSearch(brand):
-    urlPage1 = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES'
-    urlPage2 = 'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES&page=2'
-    headers = {"User-Agent": "Mozilla/5.0"}
 
-    # Faz a requisição das páginas e extrai os produtos
-    responsePage1 = requests.get(urlPage1, headers=headers)
-    soupPage1 = BeautifulSoup(responsePage1.text, 'html.parser')
-    productsPage1, brandsCounter1 = extractProducts(soupPage1, brand)
+  products = []
 
-    responsePage2 = requests.get(urlPage2, headers=headers)
-    soupPage2 = BeautifulSoup(responsePage2.text, 'html.parser')
-    productsPage2, brandsCounter2 = extractProducts(soupPage2, brand)
+  for page in range(1, 21):
+        url = f'https://www.mercadolivre.com.br/ofertas?container_id=MLB779535-1&domain_id=MLB-CELLPHONES&page={page}'
+        headers = {"User-Agent": "Mozilla/5.0"}
 
-    products = productsPage1 + productsPage2
-    brandsCounter = brandsCounter1 + brandsCounter2
+        # Faz a requisição da página e extrai os produtos
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        productsPage, brandsCounterPage = extractProducts(soup, brand)
 
-    df = pd.DataFrame(products)
+        products += productsPage
 
-    # Ordena o DataFrame pela marca
-    df = df.sort_values(by='Marca')
+  df = pd.DataFrame(products)
 
-    df.to_csv('mercado_livre_products.csv', index=False)
+  # Ordena o DataFrame pela marca
+  df = df.sort_values(by='Marca')
 
-    # Inicializando o writer do Excel com xlsxwriter
-    with pd.ExcelWriter('mercado_livre_products.xlsx', engine='xlsxwriter') as writer:
-        # Adicionando o DataFrame ao arquivo Excel
-        df.to_excel(writer, index=False, sheet_name='Produtos')
+  df.to_csv('mercado_livre_products.csv', index=False)
 
-    # Calcula a média dos percentuais de desconto dos produtos
+  # Inicializando o writer do Excel com xlsxwriter
+  with pd.ExcelWriter('mercado_livre_products.xlsx', engine='xlsxwriter') as writer:
+    # Adicionando o DataFrame ao arquivo Excel
+    df.to_excel(writer, index=False, sheet_name='Produtos')
+
+# Calcula a média dos percentuais de desconto dos produtos
     meanDiscount = df['Percentual de Desconto'].mean()
 
-    # Calcula a mediana dos percentuais de desconto dos produtos
+# Calcula a mediana dos percentuais de desconto dos produtos
     medianDiscount = df['Percentual de Desconto'].median()
 
-    # Calcula o desvio padrão dos percentuais de desconto dos produtos
+# Calcula o desvio padrão dos percentuais de desconto dos produtos
     stdDevDiscount = df['Percentual de Desconto'].std()
 
     print(f'Média dos percentuais de desconto: {meanDiscount:.2f}%')
     print(f'Mediana dos percentuais de desconto: {medianDiscount:.2f}%')
     print(f'Desvio Padrão dos percentuais de desconto: {stdDevDiscount:.2f}%')
-
+    
     modaDiscount = df['Percentual de Desconto'].mode()
     print(f'Desconto mais comum (moda): {modaDiscount.values[0]:.2f}%')
-
-    print('Frequência de marcas em promoção:')
-    for brand, count in brandsCounter.items():
-        print(f'{brand}: {count}')
-
+    
+   # print('Frequência de marcas em promoção:')
+    #for brand, count in brandsCounter.items():
+    #    print(f'{brand}: {count}')
+    
     # Plota e exibe o gráfico bloxpot removendo valores NaN
     plt.boxplot(df['Percentual de Desconto'].dropna())
     plt.title('Distribuição dos Descontos')
     plt.ylabel('Percentual de Desconto (%)')
-
+    
     plt.savefig('discount_boxplot.png')
-
+    
     plt.show()
 
 # Menu no terminal para o usuário escolher a marca
